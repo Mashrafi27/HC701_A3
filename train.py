@@ -235,7 +235,7 @@ def run_experiment(cfg: dict, max_epochs: int = 50, val_split: float = 0.15):
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg['lr'],
                                  weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='max', factor=0.5, patience=5, verbose=False
+        optimizer, mode='max', factor=0.5, patience=5
     )
 
     # ── training loop ──────────────────────────────────────────────
