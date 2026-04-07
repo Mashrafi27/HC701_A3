@@ -1,0 +1,10 @@
+torch>=2.0
+torchvision
+segmentation-models-pytorch
+albumentations
+numpy<2.0
+Pillow
+scipy
+scikit-learn
+pandas
+matplotlib
