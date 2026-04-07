@@ -53,28 +53,32 @@ def hausdorff95_numpy(pred: np.ndarray, target: np.ndarray) -> float:
 
 
 def compute_sample_metrics(pred: np.ndarray, target: np.ndarray,
-                            threshold: float = 0.5) -> dict:
+                            threshold: float = 0.5,
+                            hausdorff: bool = True) -> dict:
     """
     Compute all metrics for a single (H,W) sample.
-    pred and target should already be binary {0,1} floats.
+    Set hausdorff=False during training to avoid the expensive distance computation.
     """
     p = (pred   > threshold).astype(np.float32)
     t = (target > threshold).astype(np.float32)
 
-    return {
+    m = {
         'dice':       dice_numpy(p, t),
         'jaccard':    jaccard_numpy(p, t),
         'precision':  precision_numpy(p, t),
         'recall':     recall_numpy(p, t),
         'accuracy':   accuracy_numpy(p, t),
-        'hausdorff95': hausdorff95_numpy(p, t),
     }
+    if hausdorff:
+        m['hausdorff95'] = hausdorff95_numpy(p, t)
+    return m
 
 
 # ── batch-level torch helpers ─────────────────────────────────────────────────
 
 def batch_metrics(logits: torch.Tensor, targets: torch.Tensor,
-                  threshold: float = 0.5) -> dict:
+                  threshold: float = 0.5,
+                  hausdorff: bool = False) -> dict:
     """
     logits:  (B,1,H,W) raw logits
     targets: (B,1,H,W) binary float {0,1}
@@ -83,12 +87,10 @@ def batch_metrics(logits: torch.Tensor, targets: torch.Tensor,
     probs = torch.sigmoid(logits).detach().cpu().numpy()   # (B,1,H,W)
     tgts  = targets.detach().cpu().numpy()                 # (B,1,H,W)
 
-    results = {k: [] for k in ('dice', 'jaccard', 'precision', 'recall',
-                                'accuracy', 'hausdorff95')}
-
+    results = {}
     for b in range(probs.shape[0]):
-        m = compute_sample_metrics(probs[b, 0], tgts[b, 0], threshold)
+        m = compute_sample_metrics(probs[b, 0], tgts[b, 0], threshold, hausdorff=hausdorff)
         for k, v in m.items():
-            results[k].append(v)
+            results.setdefault(k, []).append(v)
 
     return {k: float(np.mean(v)) for k, v in results.items()}
