@@ -154,7 +154,7 @@ Distance (HD95).
 \caption{Test set performance across all five experiments (mean $\pm$ std).
 HD95 is reported in pixels. Best result per metric shown in \textbf{bold}.}
 \label{tab:results}
-\setlength{\tabcolsep}{5pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lllllll}
 \toprule
 \textbf{Exp} & \textbf{Dice} & \textbf{Jaccard} & \textbf{Precision} & \textbf{Recall} & \textbf{Accuracy} & \textbf{HD95 $\downarrow$} \\
@@ -165,7 +165,7 @@ HD95 is reported in pixels. Best result per metric shown in \textbf{bold}.}
 4 & 0.732 $\pm$ 0.402 & 0.705 $\pm$ 0.406 & \textbf{0.906 $\pm$ 0.249} & 0.788 $\pm$ 0.367 & 0.992 $\pm$ 0.011 & 2.257 $\pm$ 6.726 \\
 5 & 0.723 $\pm$ 0.407 & 0.696 $\pm$ 0.412 & \textbf{0.908 $\pm$ 0.260} & 0.777 $\pm$ 0.370 & 0.992 $\pm$ 0.011 & 2.848 $\pm$ 8.509 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \textbf{Experiment 2} achieves the highest Dice (0.744), Jaccard (0.717), Recall (0.804),
@@ -182,7 +182,9 @@ Training curves for all experiments are shown in Figure~\ref{fig:curves}.
     \centering
     \includegraphics[width=\textwidth]{figures/training_curves.pdf}
     \caption{Validation loss and validation Dice score across training epochs for
-    all five experiments.}
+    Experiments 1--4. The training history for Experiment 5 was not available
+    as the job completed without saving epoch logs; its final checkpoint was
+    preserved and used for test evaluation.}
     \label{fig:curves}
 \end{figure}
 
