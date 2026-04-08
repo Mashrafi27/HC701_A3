@@ -1,0 +1,408 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{cite}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+\title{\textbf{HC701 -- Assignment 3}\\
+Ultrasound Nerve Segmentation}
+\author{Mashrafi Monon}
+\date{April 2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Task 1.1 -- Experimental Design and Justification}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Dataset and Preprocessing}
+
+The dataset consists of 2,757 grayscale ultrasound images of the brachial plexus nerve region
+(580$\times$420 pixels) with corresponding binary segmentation masks, and a separate test set of
+2,878 images.
+All images were resized to 256$\times$256 pixels and normalised using ImageNet mean
+and standard deviation (mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]).
+Grayscale images were replicated to three channels to be compatible with ImageNet-pretrained
+encoders, a common and well-validated practice in medical image segmentation
+\cite{ronneberger2015unet}.
+A stratified 15\% validation split (413 images) was held out from training for
+model selection. Models were selected based on best validation Dice score,
+and a maximum of 50 epochs was used per experiment.
+
+\subsection{Architecture Choices}
+
+Five experiments were designed to systematically ablate the effect of
+architecture, initialisation strategy, loss function, and data augmentation.
+Table~\ref{tab:experiments} summarises the configurations.
+
+\begin{table}[H]
+\centering
+\caption{Summary of the five experimental configurations.}
+\label{tab:experiments}
+\begin{tabular}{llllll}
+\toprule
+\textbf{Exp} & \textbf{Architecture} & \textbf{Encoder} & \textbf{Init} & \textbf{Loss} & \textbf{Augmentation} \\
+\midrule
+1 & U-Net        & ResNet-34       & Random   & BCE                 & Light   \\
+2 & U-Net        & ResNet-34       & ImageNet & BCE + Dice          & Moderate \\
+3 & UNet++       & EfficientNet-B0 & ImageNet & Focal + Dice        & Heavy   \\
+4 & FPN          & ResNet-50       & ImageNet & Dice                & Heavy   \\
+5 & MAnet        & ResNet-34       & ImageNet & BCE + Dice + Focal  & Very Heavy \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Experiment 1 -- Baseline (U-Net, Random Initialisation, BCE):}
+This experiment serves as the controlled baseline. U-Net \cite{ronneberger2015unet} is the
+seminal architecture for biomedical image segmentation, employing a symmetric
+encoder-decoder structure with skip connections that preserve spatial detail.
+Random initialisation was used to establish a lower-bound reference.
+Binary cross-entropy (BCE) is the simplest pixel-level loss, treating segmentation
+as independent binary classification for each pixel.
+Minimal augmentation (horizontal and vertical flips) was applied to avoid confounding
+the initialisation comparison.
+The learning rate was set to $1 \times 10^{-3}$, which is standard for randomly
+initialised networks.
+
+\textbf{Experiment 2 -- U-Net with ImageNet Pretraining and Combined BCE+Dice Loss:}
+This experiment isolates the benefit of transfer learning from ImageNet.
+Pretraining on ImageNet provides rich feature representations -- edges, textures,
+and hierarchical structures -- that transfer effectively even to grayscale medical images
+\cite{tajbakhsh2016cnn}.
+The BCE+Dice compound loss was used as it addresses the class imbalance inherent in
+nerve segmentation (nerve pixels are a small fraction of the image).
+BCE provides stable pixel-wise gradients while Dice directly maximises overlap,
+making their combination a popular and well-supported choice in the literature
+\cite{sudre2017generalised}.
+Moderate augmentations (rotation $\pm15^\circ$, brightness/contrast jitter)
+were added to reduce overfitting without distorting anatomical plausibility.
+The learning rate was reduced to $1 \times 10^{-4}$ to protect pretrained weights.
+
+\textbf{Experiment 3 -- UNet++ with EfficientNet-B0 and Focal+Dice Loss:}
+UNet++ \cite{zhou2018unetplusplus} introduces dense skip connections with nested
+encoder-decoder sub-networks, allowing the model to aggregate features at multiple
+semantic scales. This design has shown improvements over standard U-Net on challenging
+segmentation tasks by enabling flexible feature aggregation.
+EfficientNet-B0 \cite{tan2019efficientnet} was chosen as the encoder due to its
+favourable accuracy-to-parameter trade-off, achieved through compound scaling.
+Focal loss \cite{lin2017focal} was combined with Dice to additionally penalise
+misclassified hard examples -- particularly useful when nerve boundaries are
+ambiguous or partially occluded.
+Heavy augmentation (elastic deformation, grid distortion, CLAHE) was applied
+to improve invariance to ultrasound-specific artefacts such as shadowing and
+speckle noise.
+
+\textbf{Experiment 4 -- FPN with ResNet-50 and Pure Dice Loss:}
+Feature Pyramid Networks (FPN) \cite{lin2017fpn} build a top-down feature hierarchy
+with lateral connections, enabling multi-scale detection. In segmentation, FPN decoders
+have proven competitive with U-Net-style approaches by explicitly reasoning at multiple
+resolutions, which is beneficial for nerves that vary considerably in appearance and size
+across subjects.
+ResNet-50 was selected as a deeper encoder variant to assess the effect of encoder
+capacity.
+Pure Dice loss was used to directly optimise the metric of interest, without the
+regularisation effect of BCE.
+
+\textbf{Experiment 5 -- MAnet with Combined Loss and Very Heavy Augmentation:}
+Multi-scale Attention Net (MAnet) \cite{fan2020manet} employs channel and position
+attention mechanisms at multiple scales to capture long-range dependencies, which may
+be advantageous for localising the brachial plexus in the presence of surrounding
+anatomical structures.
+The combined loss (BCE + Dice + Focal, weighted 0.4:0.4:0.2) was intended to capture
+the complementary supervision signals of all three objectives simultaneously.
+Very heavy augmentation (GaussNoise, CoarseDropout, ShiftScaleRotate on top of all
+previous augmentations) was employed as a form of regularisation given the model's
+larger representational capacity.
+
+\subsection{Common Hyperparameters}
+
+All pretrained experiments used Adam \cite{kingma2014adam} with
+$lr = 1 \times 10^{-4}$, $\beta_1 = 0.9$, $\beta_2 = 0.999$, weight decay $10^{-5}$.
+Experiment 1 used $lr = 1 \times 10^{-3}$ due to random initialisation.
+A ReduceLROnPlateau scheduler (factor=0.5, patience=5 epochs) monitored validation Dice
+to adaptively reduce the learning rate upon plateaus.
+Early stopping with patience of 12 epochs was used to prevent overfitting.
+Batch size was 8 across all experiments.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Task 1.2 -- Test Set Evaluation}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+All five trained models were evaluated on the 2,878 test images.
+Table~\ref{tab:results} reports Dice and Jaccard (primary metrics) alongside four
+additional metrics: Precision, Recall, Accuracy, and 95th-percentile Hausdorff
+Distance (HD95).
+
+\begin{table}[H]
+\centering
+\caption{Test set performance across all five experiments (mean $\pm$ std).
+HD95 is reported in pixels. Best result per metric shown in \textbf{bold}.}
+\label{tab:results}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lllllll}
+\toprule
+\textbf{Exp} & \textbf{Dice} & \textbf{Jaccard} & \textbf{Precision} & \textbf{Recall} & \textbf{Accuracy} & \textbf{HD95 $\downarrow$} \\
+\midrule
+1 & 0.706 $\pm$ 0.410 & 0.676 $\pm$ 0.416 & 0.882 $\pm$ 0.292 & 0.781 $\pm$ 0.364 & 0.992 $\pm$ 0.011 & 3.156 $\pm$ 8.379 \\
+\textbf{2} & \textbf{0.744 $\pm$ 0.396} & \textbf{0.717 $\pm$ 0.399} & 0.902 $\pm$ 0.254 & \textbf{0.804 $\pm$ 0.354} & \textbf{0.992 $\pm$ 0.011} & \textbf{2.138 $\pm$ 6.572} \\
+3 & 0.702 $\pm$ 0.411 & 0.670 $\pm$ 0.415 & 0.851 $\pm$ 0.318 & 0.802 $\pm$ 0.346 & 0.992 $\pm$ 0.011 & 3.303 $\pm$ 9.124 \\
+4 & 0.732 $\pm$ 0.402 & 0.705 $\pm$ 0.406 & \textbf{0.906 $\pm$ 0.249} & 0.788 $\pm$ 0.367 & 0.992 $\pm$ 0.011 & 2.257 $\pm$ 6.726 \\
+5 & 0.723 $\pm$ 0.407 & 0.696 $\pm$ 0.412 & \textbf{0.908 $\pm$ 0.260} & 0.777 $\pm$ 0.370 & 0.992 $\pm$ 0.011 & 2.848 $\pm$ 8.509 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Experiment 2} achieves the highest Dice (0.744), Jaccard (0.717), Recall (0.804),
+and the lowest HD95 (2.138), making it the top-performing model overall.
+Experiments 4 and 5 achieve marginally higher Precision (0.906, 0.908) but at the
+cost of lower Recall and overall Dice.
+The high standard deviations across all experiments reflect the bimodal nature of
+the dataset -- many images contain no nerve, leading to a mix of near-perfect
+scores (true negatives) and failed detections.
+
+Training curves for all experiments are shown in Figure~\ref{fig:curves}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/training_curves.pdf}
+    \caption{Validation loss and validation Dice score across training epochs for
+    all five experiments.}
+    \label{fig:curves}
+\end{figure}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Task 1.3 -- Why Experiment 2 Outperforms the Others}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+Experiment 2 (U-Net + ResNet-34 ImageNet + BCE+Dice, moderate augmentation)
+achieved the best overall test performance. The following provides a scientific
+analysis of the factors that drove this advantage.
+
+\textbf{1. Transfer learning from ImageNet.}
+The most significant factor distinguishing Exp2 from Exp1 is the use of
+ImageNet-pretrained weights. The improvement in test Dice from 0.706 (random init)
+to 0.744 (ImageNet pretrained) -- an absolute gain of 3.8\% -- is consistent with
+the broad literature on transfer learning for medical imaging
+\cite{tajbakhsh2016cnn, raghu2019transfusion}.
+Pretrained features encode low-level (edges, gradients) to mid-level (textures,
+shapes) representations that are directly applicable to detecting anatomical
+structures in ultrasound, even though the source domain (natural images) differs
+significantly. Random initialisation (Exp1) requires the model to learn all these
+representations from scratch using only 2,344 training images, which is insufficient
+for a deep encoder to converge to globally optimal features in 50 epochs.
+
+\textbf{2. BCE + Dice loss versus alternatives.}
+The BCE+Dice combination in Exp2 outperforms pure Dice (Exp4: 0.732) and Focal+Dice
+(Exp3: 0.702).
+Pure Dice loss (Exp4) lacks pixel-level regularisation and can be unstable on small,
+spatially sparse targets -- it optimises a global ratio and provides weaker gradient
+signal on individual hard pixels \cite{sudre2017generalised}.
+Focal loss (Exp3) emphasises hard examples, but in this dataset the hardest cases are
+images where no nerve is present at all -- focusing on these adds noise rather than
+useful signal.
+BCE provides stable per-pixel gradients throughout training, acting as a regulariser
+that complements the region-level Dice term.
+The combined BCE+Dice loss is therefore the best-balanced objective for this task.
+
+\textbf{3. Appropriate architecture-augmentation balance.}
+U-Net with a ResNet-34 encoder offers a strong capacity-to-data ratio for this
+dataset size.
+UNet++ (Exp3) and MAnet (Exp5) are architecturally more complex, requiring more data
+to realise their theoretical advantages; in practice, they overfit or benefit less
+from the available training set of approximately 2,300 images.
+The evidence is in the early stopping behaviour: Exp3 stopped at epoch 32 and Exp4
+at epoch 36, while Exp2 trained the full 50 epochs -- indicating that Exp2's design
+made better use of all available training signal.
+Very heavy augmentation (Exp5) over-regularises the learning signal for a ResNet-34
+encoder, hurting the precision of gradient estimates and ultimately the model's
+ability to detect the nerve reliably.
+Moderate augmentation in Exp2 strikes the right balance -- sufficient to generalise
+across patient variability without degrading the informativeness of the training
+signal.
+
+\textbf{4. Recall advantage.}
+Exp2 achieves the highest Recall (0.804), which is clinically more important than
+Precision in nerve detection: a false negative (missed nerve) is more dangerous than
+a false positive (extra predicted region) in a surgical guidance context.
+The BCE component of the loss ensures that nerve pixels are not ignored even when the
+nerve occupies a small fraction of the image, thereby maintaining sensitivity.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Task 1.4 -- Error Analysis on Worst 10\% of Cases}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Identification of Failure Cases}
+
+Using Experiment 2 (best model), the test samples were ranked by Dice score in
+ascending order. The worst 10\% corresponds to 287 samples, all with Dice $\approx$ 0.
+Figure~\ref{fig:errors} shows representative failure cases.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/task1_4_error_analysis.pdf}
+    \caption{Worst 10\% failure cases from Experiment 2. Each row shows the original
+    ultrasound image, the ground-truth mask, the predicted mask, and an overlay
+    (ground truth in green, prediction in red).}
+    \label{fig:errors}
+\end{figure}
+
+\subsection{Common Characteristics of Failure Cases}
+
+Inspection of the failure cases reveals three dominant patterns:
+
+\textbf{1. Absent or ambiguous nerve (empty ground truth).}
+Approximately 394 test images ($\sim$13.7\%) have empty ground-truth masks,
+meaning the nerve is either absent from the field of view or too faint to annotate.
+The model tends to predict a small positive region in these cases, resulting in
+Dice = 0 (false positive with no true positive).
+This is the primary source of failure and is a fundamental challenge inherent to
+the dataset.
+
+\textbf{2. Highly variable nerve appearance.}
+Ultrasound imaging is highly operator- and patient-dependent. In failure cases,
+the nerve either (a) appears with very low contrast relative to surrounding tissue,
+making it visually indistinguishable, or (b) is present but in an atypical position
+or orientation due to patient posture variation.
+The model has not encountered sufficient diversity in these presentations during training.
+
+\textbf{3. Speckle noise and shadowing artefacts.}
+Some failure cases show strong acoustic shadowing or high speckle noise that
+obscures the nerve entirely. The model incorrectly segments the boundary of the
+shadow or a nearby hypoechoic structure as the nerve.
+
+\subsection{Suggested Improvements}
+
+\textbf{1. Handle the empty-mask cases explicitly.}
+A two-stage approach \cite{oktay2018attentionunet} -- a classifier to first predict
+whether a nerve is present, followed by the segmentation model only when positive --
+would eliminate false positives in empty-mask images and likely improve Dice
+significantly.
+
+\textbf{2. Contrastive or self-supervised pre-training on ultrasound data.}
+Fine-tuning from ImageNet features is effective but limited by domain gap.
+Pre-training the encoder on a large corpus of unlabelled ultrasound images using
+contrastive learning (e.g., SimCLR \cite{chen2020simclr}) would yield
+ultrasound-specific features more robust to speckle and artefacts.
+
+\textbf{3. Test-time augmentation (TTA).}
+Applying multiple augmentations (flips, rotations) at inference and averaging the
+predictions is a simple but effective way to improve robustness on ambiguous cases
+\cite{wang2019aleatoric}.
+This adds no training cost and can improve Dice on low-contrast or boundary-ambiguous
+cases where a single forward pass produces inconsistent results.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Task 1.5 -- Qualitative Visualisation}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+Figure~\ref{fig:qualitative} presents segmentation predictions from all five
+experiments on five randomly selected test samples.
+Each row corresponds to one sample; columns show the original image, the
+ground-truth mask, and the predicted mask from each experiment.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/task1_5_qualitative.pdf}
+    \caption{Qualitative segmentation results for five randomly selected test samples
+    across all five experiments. Columns: original image, ground-truth mask,
+    Exp1--Exp5 predictions (left to right).}
+    \label{fig:qualitative}
+\end{figure}
+
+The qualitative results are consistent with the quantitative findings.
+Experiment 2 produces the most precise delineation of the nerve boundary, with fewer
+spurious activations in background regions.
+Experiment 1 (random init) tends to produce noisier, less spatially precise masks,
+reflecting the sub-optimal feature learning.
+Experiments 3 and 5 occasionally over-segment, particularly in samples with
+pronounced speckle noise, attributable to the focal loss component amplifying
+ambiguous high-loss pixels.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+
+\bibitem{ronneberger2015unet}
+O. Ronneberger, P. Fischer, and T. Brox,
+``U-Net: Convolutional networks for biomedical image segmentation,''
+in \textit{MICCAI}, 2015.
+
+\bibitem{tajbakhsh2016cnn}
+N. Tajbakhsh et al.,
+``Convolutional neural networks for medical image analysis: Full training or fine tuning?,''
+\textit{IEEE Trans. Med. Imaging}, vol. 35, no. 5, pp. 1299--1312, 2016.
+
+\bibitem{raghu2019transfusion}
+M. Raghu, C. Zhang, J. Kleinberg, and S. Bengio,
+``Transfusion: Understanding transfer learning for medical imaging,''
+in \textit{NeurIPS}, 2019.
+
+\bibitem{zhou2018unetplusplus}
+Z. Zhou, M. M. R. Siddiquee, N. Tajbakhsh, and J. Liang,
+``UNet++: A nested U-Net architecture for medical image segmentation,''
+in \textit{MICCAI Deep Learning Workshop}, 2018.
+
+\bibitem{tan2019efficientnet}
+M. Tan and Q. V. Le,
+``EfficientNet: Rethinking model scaling for convolutional neural networks,''
+in \textit{ICML}, 2019.
+
+\bibitem{lin2017focal}
+T.-Y. Lin, P. Goyal, R. Girshick, K. He, and P. Dollár,
+``Focal loss for dense object detection,''
+in \textit{ICCV}, 2017.
+
+\bibitem{lin2017fpn}
+T.-Y. Lin, P. Dollár, R. Girshick, K. He, B. Hariharan, and S. Belongie,
+``Feature pyramid networks for object detection,''
+in \textit{CVPR}, 2017.
+
+\bibitem{fan2020manet}
+T. Fan, G. Wang, Y. Li, and H. Wang,
+``MA-Net: A multi-scale attention network for liver and tumor segmentation,''
+\textit{IEEE Access}, vol. 8, pp. 179656--179665, 2020.
+
+\bibitem{sudre2017generalised}
+C. H. Sudre, W. Li, T. Vercauteren, S. Ourselin, and M. J. Cardoso,
+``Generalised Dice overlap as a deep learning loss function for highly unbalanced segmentations,''
+in \textit{MICCAI DLMIA Workshop}, 2017.
+
+\bibitem{kingma2014adam}
+D. P. Kingma and J. Ba,
+``Adam: A method for stochastic optimization,''
+in \textit{ICLR}, 2015.
+
+\bibitem{oktay2018attentionunet}
+O. Oktay et al.,
+``Attention U-Net: Learning where to look for the pancreas,''
+in \textit{MIDL}, 2018.
+
+\bibitem{chen2020simclr}
+T. Chen, S. Kornblith, M. Norouzi, and G. Hinton,
+``A simple framework for contrastive learning of visual representations,''
+in \textit{ICML}, 2020.
+
+\bibitem{wang2019aleatoric}
+G. Wang, W. Li, M. Aertsen, J. Deprest, S. Ourselin, and T. Vercauteren,
+``Aleatoric uncertainty estimation with test-time augmentation for medical image segmentation,''
+\textit{Neurocomputing}, vol. 338, pp. 34--45, 2019.
+
+\end{thebibliography}
+
+\end{document}
