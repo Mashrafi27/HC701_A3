@@ -154,18 +154,19 @@ Distance (HD95).
 \caption{Test set performance across all five experiments (mean $\pm$ std).
 HD95 is reported in pixels. Best result per metric shown in \textbf{bold}.}
 \label{tab:results}
-\resizebox{\textwidth}{!}{%
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lllllll}
 \toprule
-\textbf{Exp} & \textbf{Dice} & \textbf{Jaccard} & \textbf{Precision} & \textbf{Recall} & \textbf{Accuracy} & \textbf{HD95 $\downarrow$} \\
+\textbf{Exp} & \textbf{Dice} & \textbf{Jaccard} & \textbf{Precision} & \textbf{Recall} & \textbf{Accuracy} & \textbf{HD95~$\downarrow$} \\
 \midrule
-1 & 0.706 $\pm$ 0.410 & 0.676 $\pm$ 0.416 & 0.882 $\pm$ 0.292 & 0.781 $\pm$ 0.364 & 0.992 $\pm$ 0.011 & 3.156 $\pm$ 8.379 \\
-\textbf{2} & \textbf{0.744 $\pm$ 0.396} & \textbf{0.717 $\pm$ 0.399} & 0.902 $\pm$ 0.254 & \textbf{0.804 $\pm$ 0.354} & \textbf{0.992 $\pm$ 0.011} & \textbf{2.138 $\pm$ 6.572} \\
-3 & 0.702 $\pm$ 0.411 & 0.670 $\pm$ 0.415 & 0.851 $\pm$ 0.318 & 0.802 $\pm$ 0.346 & 0.992 $\pm$ 0.011 & 3.303 $\pm$ 9.124 \\
-4 & 0.732 $\pm$ 0.402 & 0.705 $\pm$ 0.406 & \textbf{0.906 $\pm$ 0.249} & 0.788 $\pm$ 0.367 & 0.992 $\pm$ 0.011 & 2.257 $\pm$ 6.726 \\
-5 & 0.723 $\pm$ 0.407 & 0.696 $\pm$ 0.412 & \textbf{0.908 $\pm$ 0.260} & 0.777 $\pm$ 0.370 & 0.992 $\pm$ 0.011 & 2.848 $\pm$ 8.509 \\
+1 & $0.71 \pm 0.41$ & $0.68 \pm 0.42$ & $0.88 \pm 0.29$ & $0.78 \pm 0.36$ & $0.99 \pm 0.01$ & $3.16 \pm 8.38$ \\
+\textbf{2} & $\mathbf{0.74 \pm 0.40}$ & $\mathbf{0.72 \pm 0.40}$ & $0.90 \pm 0.25$ & $\mathbf{0.80 \pm 0.35}$ & $0.99 \pm 0.01$ & $\mathbf{2.14 \pm 6.57}$ \\
+3 & $0.70 \pm 0.41$ & $0.67 \pm 0.42$ & $0.85 \pm 0.32$ & $0.80 \pm 0.35$ & $0.99 \pm 0.01$ & $3.30 \pm 9.12$ \\
+4 & $0.73 \pm 0.40$ & $0.71 \pm 0.41$ & $\mathbf{0.91 \pm 0.25}$ & $0.79 \pm 0.37$ & $0.99 \pm 0.01$ & $2.26 \pm 6.73$ \\
+5 & $0.72 \pm 0.41$ & $0.70 \pm 0.41$ & $\mathbf{0.91 \pm 0.26}$ & $0.78 \pm 0.37$ & $0.99 \pm 0.01$ & $2.85 \pm 8.51$ \\
 \bottomrule
-\end{tabular}}
+\end{tabular}
 \end{table}
 
 \textbf{Experiment 2} achieves the highest Dice (0.744), Jaccard (0.717), Recall (0.804),
@@ -180,7 +181,7 @@ Training curves for all experiments are shown in Figure~\ref{fig:curves}.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/training_curves.pdf}
+    \includegraphics[width=\textwidth]{figures3/training_curves.pdf}
     \caption{Validation loss and validation Dice score across training epochs for
     Experiments 1--4. The training history for Experiment 5 was not available
     as the job completed without saving epoch logs; its final checkpoint was
@@ -257,7 +258,7 @@ Figure~\ref{fig:errors} shows representative failure cases.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/task1_4_error_analysis.pdf}
+    \includegraphics[width=0.6\textwidth]{figures3/task1_4_error_analysis.pdf}
     \caption{Worst 10\% failure cases from Experiment 2. Each row shows the original
     ultrasound image, the ground-truth mask, the predicted mask, and an overlay
     (ground truth in green, prediction in red).}
@@ -320,7 +321,7 @@ ground-truth mask, and the predicted mask from each experiment.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/task1_5_qualitative.pdf}
+    \includegraphics[width=\textwidth]{figures3/task1_5_qualitative.pdf}
     \caption{Qualitative segmentation results for five randomly selected test samples
     across all five experiments. Columns: original image, ground-truth mask,
     Exp1--Exp5 predictions (left to right).}
