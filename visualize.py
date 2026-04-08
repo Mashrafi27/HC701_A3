@@ -216,8 +216,6 @@ def task_1_4_error_analysis():
     fig.legend(handles=legend_elems, loc='lower center', ncol=2,
                fontsize=8, frameon=True, bbox_to_anchor=(0.5, -0.01))
 
-    fig.suptitle(f'Task 1.4 — Worst 10% Failure Cases\n({best_exp["name"]})',
-                 fontsize=10, fontweight='bold', y=1.01)
     plt.tight_layout()
 
     out_path = os.path.join(FIG_DIR, 'task1_4_error_analysis.pdf')
@@ -325,8 +323,7 @@ def task_1_5_qualitative():
                 ax.imshow(pred_disp, cmap='gray', vmin=0, vmax=1)
             ax.axis('off')
 
-    fig.suptitle('Task 1.5 — Qualitative Segmentation Results (5 Test Samples × 5 Experiments)',
-                 fontsize=10, fontweight='bold', y=1.005)
+
 
     out_path = os.path.join(FIG_DIR, 'task1_5_qualitative.pdf')
     plt.savefig(out_path, format='pdf')
@@ -364,7 +361,6 @@ def plot_training_curves():
         ax.spines['right'].set_visible(False)
 
     axes[0].legend(fontsize=7, frameon=False, ncol=2)
-    fig.suptitle('Training Curves — All Experiments', fontsize=10, fontweight='bold')
     plt.tight_layout()
 
     out = os.path.join(FIG_DIR, 'training_curves.pdf')
