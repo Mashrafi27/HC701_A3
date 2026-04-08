@@ -47,8 +47,8 @@ and a maximum of 50 epochs was used per experiment.
 
 \subsection{Architecture Choices}
 
-Five experiments were designed to systematically ablate the effect of
-architecture, initialisation strategy, loss function, and data augmentation.
+Five experiments were conducted to study the effect of architecture,
+initialisation strategy, loss function, and data augmentation on segmentation performance.
 Table~\ref{tab:experiments} summarises the configurations.
 
 \begin{table}[H]
@@ -192,8 +192,8 @@ Training curves for all experiments are shown in Figure~\ref{fig:curves}.
 %% ─────────────────────────────────────────────────────────────────────────────
 
 Experiment 2 (U-Net + ResNet-34 ImageNet + BCE+Dice, moderate augmentation)
-achieved the best overall test performance. The following provides a scientific
-analysis of the factors that drove this advantage.
+achieved the best overall test performance. This section analyses the factors
+behind this result.
 
 \textbf{1. Transfer learning from ImageNet.}
 The most significant factor distinguishing Exp2 from Exp1 is the use of
@@ -201,12 +201,11 @@ ImageNet-pretrained weights. The improvement in test Dice from 0.706 (random ini
 to 0.744 (ImageNet pretrained) -- an absolute gain of 3.8\% -- is consistent with
 the broad literature on transfer learning for medical imaging
 \cite{tajbakhsh2016cnn, raghu2019transfusion}.
-Pretrained features encode low-level (edges, gradients) to mid-level (textures,
-shapes) representations that are directly applicable to detecting anatomical
-structures in ultrasound, even though the source domain (natural images) differs
-significantly. Random initialisation (Exp1) requires the model to learn all these
-representations from scratch using only 2,344 training images, which is insufficient
-for a deep encoder to converge to globally optimal features in 50 epochs.
+Pretrained encoders already carry useful low- and mid-level features (edges, textures,
+shapes) that transfer well to ultrasound, despite the domain gap.
+With random initialisation (Exp1), the model must learn all of these from 2,344
+training images in 50 epochs, which is not enough for the encoder to reach comparable
+representations.
 
 \textbf{2. BCE + Dice loss versus alternatives.}
 The BCE+Dice combination in Exp2 outperforms pure Dice (Exp4: 0.732) and Focal+Dice
@@ -227,15 +226,12 @@ dataset size.
 UNet++ (Exp3) and MAnet (Exp5) are architecturally more complex, requiring more data
 to realise their theoretical advantages; in practice, they overfit or benefit less
 from the available training set of approximately 2,300 images.
-The evidence is in the early stopping behaviour: Exp3 stopped at epoch 32 and Exp4
-at epoch 36, while Exp2 trained the full 50 epochs -- indicating that Exp2's design
-made better use of all available training signal.
-Very heavy augmentation (Exp5) over-regularises the learning signal for a ResNet-34
-encoder, hurting the precision of gradient estimates and ultimately the model's
-ability to detect the nerve reliably.
-Moderate augmentation in Exp2 strikes the right balance -- sufficient to generalise
-across patient variability without degrading the informativeness of the training
-signal.
+This is reflected in the early stopping: Exp3 stopped at epoch 32 and Exp4 at
+epoch 36, whereas Exp2 ran the full 50 epochs.
+Very heavy augmentation (Exp5) appears to over-regularise for a ResNet-34 encoder
+at this dataset scale, making training less stable.
+Moderate augmentation in Exp2 provides enough variability to generalise across
+patients without distorting the training signal.
 
 \textbf{4. Recall advantage.}
 Exp2 achieves the highest Recall (0.804), which is clinically more important than
@@ -265,7 +261,7 @@ Figure~\ref{fig:errors} shows representative failure cases.
 
 \subsection{Common Characteristics of Failure Cases}
 
-Inspection of the failure cases reveals three dominant patterns:
+Looking at the failure cases, three patterns stand out:
 
 \textbf{1. Absent or ambiguous nerve (empty ground truth).}
 Approximately 394 test images ($\sim$13.7\%) have empty ground-truth masks,
@@ -326,14 +322,13 @@ ground-truth mask, and the predicted mask from each experiment.
     \label{fig:qualitative}
 \end{figure}
 
-The qualitative results are consistent with the quantitative findings.
-Experiment 2 produces the most precise delineation of the nerve boundary, with fewer
-spurious activations in background regions.
-Experiment 1 (random init) tends to produce noisier, less spatially precise masks,
-reflecting the sub-optimal feature learning.
-Experiments 3 and 5 occasionally over-segment, particularly in samples with
-pronounced speckle noise, attributable to the focal loss component amplifying
-ambiguous high-loss pixels.
+The qualitative results align with the quantitative findings.
+Experiment 2 consistently produces the cleanest nerve delineation with few false
+positives in the background.
+Experiment 1 tends to be noisier and less precise, which is expected given the
+random initialisation.
+Experiments 3 and 5 occasionally over-segment in high-speckle regions, likely due
+to the focal loss component placing extra weight on ambiguous pixels.
 
 %% ─────────────────────────────────────────────────────────────────────────────
 \bibliographystyle{plain}
